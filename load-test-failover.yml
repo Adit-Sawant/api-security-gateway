@@ -1,0 +1,17 @@
+config:
+  target: "http://localhost"
+
+  phases:
+    - duration: 60
+      arrivalRate: 10
+      name: Failover test
+
+  defaults:
+    headers:
+      Accept: "application/json"
+
+scenarios:
+  - name: Gateway health during failover
+    flow:
+      - get:
+          url: "/api/v1/health/live"

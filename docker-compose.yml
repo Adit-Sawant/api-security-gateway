@@ -2,50 +2,39 @@ services:
   redis:
     image: redis:7-alpine
     container_name: api-gateway-redis
-    ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - "${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}"
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD}\" ping | grep -q PONG"]
       interval: 5s
       timeout: 3s
       retries: 5
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
 
   postgres:
     image: postgres:16-alpine
     container_name: api-gateway-postgres
-    ports:
-      - "5432:5432"
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: gateway_user
-      POSTGRES_PASSWORD: gateway_password
-      POSTGRES_DB: gateway_db
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U gateway_user -d gateway_db"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 3s
       retries: 5
 
-  # app:
-  #   build: .
-  #   container_name: api-security-gateway
-  #   restart: unless-stopped
-  #   env_file:
-  #     - .env
-  #   environment:
-  #     REDIS_HOST: redis
-  #     DATABASE_URL: "postgresql://gateway_user:gateway_password@postgres:5432/gateway_db?schema=public"
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #     postgres:
-  #       condition: service_healthy
-
-  
   app1:
     build: .
     container_name: api-gateway-app1
@@ -55,7 +44,8 @@ services:
       - .env
     environment:
       REDIS_HOST: redis
-      DATABASE_URL: "postgresql://gateway_user:gateway_password@postgres:5432/gateway_db?schema=public"
+      REDIS_PORT: 6379
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public"
     depends_on:
       redis:
         condition: service_healthy
@@ -63,12 +53,7 @@ services:
         condition: service_healthy
     healthcheck:
       test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://127.0.0.1:3000/api/v1').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
-        ]
+        ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/v1/health/live').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -83,7 +68,8 @@ services:
       - .env
     environment:
       REDIS_HOST: redis
-      DATABASE_URL: "postgresql://gateway_user:gateway_password@postgres:5432/gateway_db?schema=public"
+      REDIS_PORT: 6379
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public"
     depends_on:
       redis:
         condition: service_healthy
@@ -91,35 +77,115 @@ services:
         condition: service_healthy
     healthcheck:
       test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://127.0.0.1:3000/api/v1').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
-        ]
+        ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/v1/health/live').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 3
       start_period: 20s
 
-
-  
   nginx:
     image: nginx:1.28-alpine
     container_name: api-gateway-nginx
+    restart: unless-stopped
     ports:
       - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    # depends_on:
-    #   - app
     depends_on:
       app1:
         condition: service_healthy
       app2:
         condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: api-gateway-prometheus
     restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+    depends_on:
+      app1:
+        condition: service_healthy
+      app2:
+        condition: service_healthy
+
+  grafana:
+    image: grafana/grafana:12.2.0
+    container_name: api-gateway-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SMTP_ENABLED: "true"
+      GF_SMTP_HOST: "smtp.gmail.com:587"
+      GF_SMTP_USER: "aditsawant45@gmail.com"
+      GF_SMTP_PASSWORD: ${GRAFANA_SMTP_PASSWORD:?Set GRAFANA_SMTP_PASSWORD in .env}
+      GF_SMTP_FROM_ADDRESS: "aditsawant45@gmail.com"
+      GF_SMTP_FROM_NAME: "API Security Gateway"
+      GF_SMTP_STARTTLS_POLICY: "MandatoryStartTLS"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+  loki:
+    image: grafana/loki:3.5.0
+    container_name: api-gateway-loki
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    command:
+      - "-config.file=/etc/loki/local-config.yaml"
+    healthcheck:
+      test: ["CMD", "/usr/bin/loki", "-health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  alloy:
+    image: grafana/alloy:v1.21.3
+    container_name: api-gateway-alloy
+    restart: unless-stopped
+    user: "0:0"
+    ports:
+      - "127.0.0.1:12345:12345"
+    volumes:
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy_data:/var/lib/alloy/data
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    depends_on:
+      - loki
+
+  tempo:
+    image: grafana/tempo:3.1.1
+    container_name: api-gateway-tempo
+    restart: unless-stopped
+    command:
+      - "-target=all"
+      - "-config.file=/etc/tempo/tempo.yml"
+    volumes:
+      - ./monitoring/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempo_data:/var/tempo
 
 volumes:
   redis_data:
   postgres_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  alloy_data:
+  tempo_data:

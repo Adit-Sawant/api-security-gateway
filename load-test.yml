@@ -1,0 +1,26 @@
+config:
+  target: "http://localhost"
+
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: Warm-up
+
+    - duration: 120
+      arrivalRate: 5
+      rampTo: 20
+      name: Gradual ramp-up
+
+    - duration: 120
+      arrivalRate: 20
+      name: Sustained load
+
+  defaults:
+    headers:
+      Accept: "application/json"
+
+scenarios:
+  - name: Gateway health check
+    flow:
+      - get:
+          url: "/api/v1/health/live"

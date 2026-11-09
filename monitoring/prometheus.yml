@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "api-gateway-apps"
+    metrics_path: "/api/v1/metrics"
+    scrape_interval: 15s
+
+    static_configs:
+      - targets:
+          - "app1:3000"
+          - "app2:3000"

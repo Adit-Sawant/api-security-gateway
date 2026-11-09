@@ -1,13 +1,20 @@
-# compiled output
-/dist
+# Dependencies
 /node_modules
-/build
+/.pnp
+.pnp.*
 
-# TypeScript build cache
+# Build output
+/dist
+/build
+/out
 *.tsbuildinfo
 
+# Test output
+/coverage
+/.nyc_output
+
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 pnpm-debug.log*
@@ -15,59 +22,60 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
-# OS
-.DS_Store
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
 
-# Tests
-/coverage
-/.nyc_output
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+
+# Generated files
+/src/generated/
+
+# Docker and local database data
+postgres_data/
+redis_data/
+/volumes/
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Temporary files
+.temp/
+.tmp/
+*.local
 
 # IDEs and editors
-/.idea
+.idea/
 .project
 .classpath
 .c9/
 *.launch
 .settings/
-*.sublime-workspace
-
-# IDE - VSCode
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# dotenv environment variable files
-.env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
 
-# temp directory
-.temp
-.tmp
+# Diagnostic reports
+report.*.json
 
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Diagnostic reports (https://nodejs.org/api/report.html)
-report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-
-# Environment variables
-.env.*
-!.env.example
-
-# Docker and local development data
-postgres_data/
-redis_data/
-
-# Generated files
-src/generated/
-
-# Local temporary files
-*.local
+# Local backups
+*.bak
+*.backup
+*.old
