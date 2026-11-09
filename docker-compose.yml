@@ -146,10 +146,11 @@ services:
     command:
       - "-config.file=/etc/loki/local-config.yaml"
     healthcheck:
-      test: ["CMD", "/usr/bin/loki", "-health"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3100/ready || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
   alloy:
     image: grafana/alloy:v1.21.3
