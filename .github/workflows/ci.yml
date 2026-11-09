@@ -42,6 +42,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate Prisma Client
+        env:
+          DATABASE_URL: postgresql://gateway_user:gateway_password@localhost:5432/gateway_db?schema=public
+        run: npx prisma generate
+
       - name: Run all unit tests
         run: npm test -- --runInBand
 
