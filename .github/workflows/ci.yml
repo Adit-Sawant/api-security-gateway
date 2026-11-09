@@ -1,0 +1,47 @@
+name: API Gateway CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-gateway-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    name: Test and Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      NODE_OPTIONS: --experimental-vm-modules
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run all unit tests
+        run: npm test -- --runInBand
+
+      - name: Build NestJS application
+        run: npm run build
+
+      - name: Build Docker image
+        run: docker build -t api-security-gateway:${{ github.sha }} .
