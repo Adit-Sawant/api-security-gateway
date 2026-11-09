@@ -1,195 +1,223 @@
 # API Rate Limiting & Security Gateway
 
-A secure and scalable API gateway built with **NestJS, Node.js, Redis, PostgreSQL, Prisma, JWT, Docker and NGINX**.
+<p align="center">
+  <strong>A scalable API security gateway built with NestJS, Redis, PostgreSQL, NGINX and Docker.</strong>
+</p>
 
-This project demonstrates backend engineering concepts including authentication, role-based authorization, subscription-aware rate limiting, distributed request control, reverse proxying, load balancing and application observability.
+<p align="center">
+  <img src="https://img.shields.io/badge/NestJS-12-red?logo=nestjs" />
+  <img src="https://img.shields.io/badge/Node.js-22-green?logo=node.js" />
+  <img src="https://img.shields.io/badge/TypeScript-6-blue?logo=typescript" />
+  <img src="https://img.shields.io/badge/Redis-7-red?logo=redis" />
+  <img src="https://img.shields.io/badge/PostgreSQL-16-blue?logo=postgresql" />
+  <img src="https://img.shields.io/badge/Docker-Enabled-blue?logo=docker" />
+</p>
+
+## Overview
+
+**API Rate Limiting & Security Gateway** is a backend infrastructure project designed to secure API traffic, enforce subscription-based usage limits, control access and improve service reliability.
+
+The gateway uses JWT authentication, role-based authorization, Redis-backed rate limiting and NGINX load balancing to manage incoming API requests.
+
+It also includes centralized logging, metrics collection, distributed tracing, containerization and automated CI/CD workflows.
+
+The project was developed with an emphasis on SOLID principles, modular architecture, scalability and production-oriented engineering practices.
 
 ## Architecture
 
 ```mermaid
-flowchart TD
-    A[API Client] --> B[NGINX Reverse Proxy]
-    B --> C[NestJS Instance 1]
-    B --> D[NestJS Instance 2]
+flowchart TB
+    Client[API Client] --> NGINX[NGINX Load Balancer]
 
-    C --> E[Redis]
-    D --> E
+    NGINX --> APP1[NestJS App 1]
+    NGINX --> APP2[NestJS App 2]
 
-    C --> F[PostgreSQL]
-    D --> F
+    APP1 --> AUTH[JWT Authentication & RBAC]
+    APP2 --> AUTH
 
-    C --> G[Application Metrics]
-    D --> G
+    AUTH --> RATE[Rate Limiting Guards]
+
+    RATE --> REDIS[(Redis)]
+    RATE --> DB[(PostgreSQL)]
+
+    APP1 --> METRICS[Prometheus Metrics]
+    APP2 --> METRICS
+
+    APP1 --> LOGS[Loki / Alloy]
+    APP2 --> LOGS
+
+    APP1 --> TRACE[OpenTelemetry]
+    APP2 --> TRACE
+
+    METRICS --> GRAFANA[Grafana]
+    LOGS --> GRAFANA
+    TRACE --> TEMPO[Tempo]
 ```
-
-### Request Flow
-
-1. API clients send requests through NGINX.
-2. NGINX distributes traffic between NestJS instances.
-3. NestJS authenticates requests using JWT.
-4. Authorization guards verify user roles.
-5. Rate-limiting guards enforce user-based or IP-based quotas.
-6. Redis maintains shared rate-limit counters across application instances.
-7. PostgreSQL stores persistent application data.
 
 ## Technology Stack
 
 | Category | Technology |
 |---|---|
 | Backend | NestJS, Node.js, TypeScript |
-| Authentication | JWT, Passport, bcrypt |
+| Authentication | JWT |
 | Authorization | Role-Based Access Control |
-| Database | PostgreSQL |
+| Database | PostgreSQL 16 |
 | ORM | Prisma |
-| Caching and rate limiting | Redis |
-| Reverse proxy | NGINX |
+| Caching & Rate Limiting | Redis 7 |
+| Load Balancing | NGINX |
 | Containerization | Docker, Docker Compose |
-| Application metrics | Prometheus Client |
+| Metrics | Prometheus |
+| Dashboards | Grafana |
+| Centralized Logging | Loki, Grafana Alloy |
+| Distributed Tracing | OpenTelemetry, Tempo |
+| Testing | Jest, Artillery |
+| CI/CD | GitHub Actions |
+| Image Registry | GitHub Container Registry |
 
-## Features
+## Key Features
 
-### 1. Authentication and Authorization
-
-- User registration and login.
-- Secure password hashing using bcrypt.
+### 1. Authentication & Authorization
 - JWT-based authentication.
+- Role-Based Access Control (RBAC).
 - Protected API endpoints.
-- Role-based access control.
-- USER, DEVELOPER and ADMIN roles.
+- Authentication and authorization guards.
 
-### 2. Subscription-Aware Rate Limiting
+### 2. Dynamic Subscription-Based Rate Limiting
 
-Dynamic API request quotas based on subscription plans.
+Implements configurable API request limits based on subscription plans.
 
 | Subscription | Requests per minute |
 |---|---:|
-| FREE | 60 |
+| FREE | 10 |
 | PRO | 600 |
-| ENTERPRISE | 3,000 |
+| ENTERPRISE | 3000 |
 
-Features:
+- Redis-backed distributed rate limiting.
+- Sliding-window rate limiting algorithm.
 - User-based rate limiting.
 - IP-based rate limiting.
-- Configurable request limits.
-- Rate-limit response headers.
-- Environment-based configuration validation.
+- Separate protection for login and registration endpoints.
+- Default FREE plan fallback for unrecognized subscription plans.
 
-### 3. Redis Sliding Window Rate Limiting
+### 3. Redis Integration
+- Centralized rate-limit storage.
+- Shared rate-limit state across application instances.
+- Password-protected Redis connectivity.
+- Configurable Redis database and connection settings.
 
-Implements the Sliding Window Log algorithm using Redis.
+### 4. Database Integration
+- PostgreSQL relational database.
+- Prisma ORM.
+- Structured database models and relationships.
+- Database migrations and indexing.
 
-- Atomic Redis operations using Lua scripts.
-- Shared counters across multiple NestJS instances.
-- Consistent rate-limit enforcement.
-- Configurable time windows.
-- Separate user and IP rate-limit keys.
-
-### 4. NGINX API Gateway
-
-- Reverse proxy configuration.
+### 5. Load Balancing & Scalability
+- NGINX reverse proxy.
 - Multiple NestJS application instances.
-- Least-connections load balancing.
-- Backend failure handling.
-- Forwarded client IP handling.
-- Health checks and graceful shutdown.
+- Distributed incoming request handling.
+- Application instance failover testing.
 
-### 5. Database and Reliability
+### 6. Security & Reliability
+- Helmet security headers.
+- CORS configuration.
+- Request validation using NestJS ValidationPipe.
+- Input whitelisting and rejection of unexpected properties.
+- Request correlation IDs.
+- Structured application logging.
+- Graceful application shutdown.
+- Liveness and readiness endpoints.
 
-- PostgreSQL database integration.
-- Prisma ORM and migrations.
-- Repository pattern.
-- Relational data models.
-- Database indexes and unique constraints.
-- Graceful database connection management.
+### 7. Observability & Monitoring
 
-### 6. Observability and Error Handling
+The project includes an integrated observability stack:
 
-- Correlation IDs using `X-Request-ID`.
-- Structured JSON logging.
-- Request duration tracking.
-- Global HTTP exception filter.
-- Application liveness and readiness endpoints.
-- Prometheus-compatible metrics endpoint.
-- HTTP request counters and latency histograms.
-- Active request gauge.
-- User-based and IP-based rate-limit metrics.
-- Node.js runtime metrics.
+- **Prometheus:** Application metrics collection.
+- **Grafana:** Monitoring dashboards and alerting.
+- **Loki:** Centralized log aggregation.
+- **Grafana Alloy:** Log collection and forwarding.
+- **OpenTelemetry:** Application instrumentation.
+- **Tempo:** Distributed trace storage.
 
-## API Endpoints
+### 8. CI/CD & Containerization
+- Multi-stage Docker build.
+- Docker Compose orchestration.
+- GitHub Actions automated testing and build workflows.
+- Docker image publishing to GitHub Container Registry.
+- Container health checks.
 
-Base path: `/api/v1`
+## Performance & Reliability Testing
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/auth/register` | Register a new user |
-| POST | `/auth/login` | Authenticate a user |
-| GET | `/auth/profile` | Get authenticated user profile |
-| GET | `/access/user` | User-authorized endpoint |
-| GET | `/access/developer` | Developer-authorized endpoint |
-| GET | `/access/admin` | Admin-authorized endpoint |
-| GET | `/health/live` | Application liveness check |
-| GET | `/health/ready` | Database and Redis readiness check |
-| GET | `/redis-health` | Redis connectivity check |
-| GET | `/metrics` | Application metrics |
-| GET | `/` | Basic application health |
+Load testing was performed using Artillery.
 
-Protected endpoints require a JWT:
+### Baseline Load Test
 
-```http
-Authorization: Bearer <your-access-token>
+| Metric | Result |
+|---|---:|
+| Total requests | 4,200 |
+| Successful HTTP responses | 100% |
+| Failed requests | 0 |
+| P95 response time | 13.9 ms |
+| P99 response time | 22 ms |
+| Maximum response time | 47 ms |
+
+### Application Failover Test
+
+The failover scenario tested application availability while one NestJS instance was stopped during the test.
+
+| Metric | Result |
+|---|---:|
+| Total requests | 600 |
+| Successful HTTP responses | 100% |
+| Failed requests | 0 |
+| P95 response time | 15 ms |
+| P99 response time | 43.4 ms |
+| Maximum response time | 5,011 ms |
+
+**Observation:** All requests completed successfully during the tested instance failure scenario. A temporary latency spike was observed during upstream recovery.
+
+These are results from the project's recorded test runs, not a guarantee of performance under all workloads.
+
+## Health Check Endpoints
+
+The application exposes the following endpoints:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/v1/health/live` | Checks whether the application is alive |
+| `GET /api/v1/health/ready` | Checks application readiness and dependencies |
+
+Example liveness response:
+
+```json
+{
+  "status": "alive",
+  "timestamp": "2026-11-09T09:57:19.042Z"
+}
 ```
 
-## Project Structure
+Example readiness response:
 
-```text
-api-security-gateway/
-│
-├── monitoring/
-├── nginx/
-├── prisma/
-│   ├── migrations/
-│   ├── schema.prisma
-│   └── seed.ts
-│
-├── src/
-│   ├── common/
-│   │   ├── decorators/
-│   │   ├── filters/
-│   │   ├── guards/
-│   │   ├── middleware/
-│   │   └── logger/
-│   │
-│   ├── config/
-│   ├── infrastructure/
-│   │   └── redis/
-│   │
-│   ├── modules/
-│   │   ├── auth/
-│   │   ├── health/
-│   │   ├── metrics/
-│   │   └── users/
-│   │
-│   └── rate-limiter/
-│
-├── .env.example
-├── .gitignore
-├── docker-compose.yml
-├── Dockerfile
-├── prisma.config.ts
-├── package.json
-└── README.md
+```json
+{
+  "status": "ready",
+  "checks": {
+    "database": true,
+    "redis": true
+  },
+  "timestamp": "2026-11-09T09:57:19.042Z"
+}
 ```
-
-*The structure above is representative; adjust folder names if your repository differs.*
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 22+
+Install the following:
+
+- Node.js
 - npm
 - Docker Desktop
-- Docker Compose
+- Git
 
 ### 1. Clone the repository
 
@@ -201,136 +229,233 @@ cd api-security-gateway
 
 ### 2. Configure environment variables
 
-Create a local `.env` file using `.env.example` as a reference.
+Create your local `.env` file using the example:
 
-Configure:
-- PostgreSQL connection URL.
-- Redis connection details.
-- JWT secret and expiration.
-- Rate-limit settings.
+```bash
+copy .env.example .env
+```
 
-Use local development credentials only. Never commit your actual `.env` file or production secrets.
+Configure the required environment variables:
+
+```env
+NODE_ENV=development
+PORT=3000
+
+DATABASE_URL=postgresql://gateway_user:YOUR_PASSWORD@postgres:5432/gateway_db?schema=public
+
+POSTGRES_USER=gateway_user
+POSTGRES_PASSWORD=YOUR_PASSWORD
+POSTGRES_DB=gateway_db
+
+JWT_SECRET=YOUR_SECURE_JWT_SECRET
+JWT_EXPIRES_IN=15m
+
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=YOUR_REDIS_PASSWORD
+REDIS_DB=0
+
+RATE_LIMIT_WINDOW_SECONDS=60
+RATE_LIMIT_FREE=10
+RATE_LIMIT_PRO=600
+RATE_LIMIT_ENTERPRISE=3000
+RATE_LIMIT_LOGIN=10
+RATE_LIMIT_REGISTER=5
+```
+
+**Important:** Use appropriate hostnames for your environment. Inside Docker Compose, use service names such as `postgres` and `redis`, not `localhost`.
+
+Never commit `.env` or expose production credentials.
 
 ### 3. Install dependencies
 
 ```bash
-npm ci
+npm install
 ```
 
-### 4. Generate the Prisma client
+### 4. Generate Prisma Client
 
 ```bash
 npx prisma generate
 ```
 
-### 5. Start infrastructure services
+### 5. Start the application
 
-Start PostgreSQL and Redis:
-
-```bash
-docker compose up -d postgres redis
-```
-
-Ensure your local `.env` uses the host-accessible PostgreSQL and Redis addresses.
-
-### 6. Apply database migrations
+For local development, ensure PostgreSQL and Redis are running and configured for your local environment.
 
 ```bash
-npx prisma migrate deploy
+npm run start:dev
 ```
 
-### 7. Start the complete application
+### 6. Run the application using Docker Compose
 
 ```bash
-docker compose up --build -d
+docker compose up -d --build
 ```
 
-### 8. Verify running containers
+Check running services:
 
 ```bash
 docker compose ps
 ```
 
-### 9. View application logs
+Check application logs:
 
 ```bash
 docker compose logs -f app1
 ```
 
-## Application URLs
+### 7. Verify application health
 
-Once the Docker Compose services are running:
+```bash
+curl http://localhost/api/v1/health/live
+```
 
-| Service | URL |
-|---|---|
-| API Gateway | `http://localhost` |
-| Liveness | `http://localhost/api/v1/health/live` |
-| Readiness | `http://localhost/api/v1/health/ready` |
-| Redis health | `http://localhost/api/v1/redis-health` |
-| Metrics | `http://localhost/api/v1/metrics` |
+```bash
+curl http://localhost/api/v1/health/ready
+```
 
-NGINX exposes the application through port 80 by default.
+## Running Tests
 
-## Environment Configuration
+Run the complete Jest test suite:
 
-The following rate-limit settings are configurable:
+```bash
+set NODE_OPTIONS=--experimental-vm-modules
+npm test -- --runInBand
+```
 
-| Variable | Default |
-|---|---:|
-| `RATE_LIMIT_WINDOW_SECONDS` | 60 |
-| `RATE_LIMIT_FREE` | 60 |
-| `RATE_LIMIT_PRO` | 600 |
-| `RATE_LIMIT_ENTERPRISE` | 3000 |
-| `RATE_LIMIT_LOGIN` | 10 |
-| `RATE_LIMIT_REGISTER` | 5 |
+Build the NestJS application:
 
-The application validates rate-limit configuration during startup.
+```bash
+npm run build
+```
 
-Refer to `.env.example` for the complete environment variable template.
+Run the Artillery load test:
 
-## Engineering Concepts Demonstrated
+```bash
+npx artillery run load-test.yml
+```
 
-- SOLID principles.
-- Dependency injection and abstraction.
-- Repository pattern.
-- Authentication versus authorization.
-- Role-based access control.
-- Subscription-based access control.
-- Redis atomic operations and Lua scripting.
-- Sliding Window Log rate-limiting algorithm.
-- Reverse proxy and load balancing.
-- Docker-based multi-instance deployment.
-- Health checks and graceful shutdown.
-- Structured logging and application metrics.
+Run the failover test:
+
+```bash
+npx artillery run load-test-failover.yml
+```
+
+## Docker Image
+
+The published container image is available through GitHub Container Registry.
+
+**Image:**
+
+```text
+ghcr.io/adit-sawant/api-security-gateway:latest
+```
+
+Pull the image:
+
+```bash
+docker pull ghcr.io/adit-sawant/api-security-gateway:latest
+```
+
+Run the image with your configured environment and Docker network:
+
+```bash
+docker run -d \
+  --name gateway \
+  --network api-security-gateway_default \
+  -p 3002:3000 \
+  --env-file .env \
+  -e REDIS_HOST=redis \
+  -e NODE_ENV=production \
+  ghcr.io/adit-sawant/api-security-gateway:latest
+```
+
+Verify readiness:
+
+```bash
+curl http://localhost:3002/api/v1/health/ready
+```
+
+The container requires access to the configured PostgreSQL and Redis services.
+
+## Monitoring
+
+The observability stack provides visibility into:
+
+- Application health and availability.
+- HTTP request metrics.
+- Request processing and latency.
+- Application logs.
+- Distributed traces.
+- Service-level errors and failures.
+
+Grafana is used as the central monitoring interface.
+
+## Project Structure
+
+```text
+api-security-gateway/
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+│
+├── prisma/
+│   └── schema.prisma
+│
+├── src/
+│   ├── auth/
+│   ├── common/
+│   ├── health/
+│   ├── rate-limiter/
+│   ├── redis/
+│   ├── prisma/
+│   ├── app.module.ts
+│   ├── main.ts
+│   └── instrumentation.ts
+│
+├── Dockerfile
+├── docker-compose.yml
+├── nginx.conf
+├── .env.example
+├── jest.config.ts
+└── package.json
+```
+
+*The structure above is a high-level overview; individual modules and configuration files may differ.*
+
+## Engineering Principles
+
+This project emphasizes:
+
+- SOLID design principles.
+- Separation of concerns.
+- Modular architecture.
+- Reusable services and guards.
+- Dependency injection.
+- Distributed state management.
+- Containerized infrastructure.
+- Automated testing.
+- Observability and reliability engineering.
 
 ## Future Enhancements
 
-- Prometheus server integration.
-- Grafana dashboards.
-- Centralized log aggregation.
-- OpenTelemetry distributed tracing.
-- Load and performance testing.
-- CI/CD pipeline.
-- Production deployment automation.
+Potential areas for further development:
 
-## Project Status
-
-**Phase 1: Core API Gateway implementation completed.**
-
-The application includes authentication, authorization, distributed rate limiting, containerized deployment, load balancing, health checks and application-level metrics.
-
-Prometheus server integration, Grafana visualization and additional production-readiness enhancements are planned for a future phase.
-
----
+- Kubernetes deployment.
+- API key-based authentication.
+- Per-endpoint subscription quotas.
+- Advanced abuse detection.
+- Automated security scanning.
+- TLS termination and production ingress.
+- Distributed rate-limit analytics.
+- Advanced autoscaling and resilience testing.
 
 ## Author
 
 **Adit Santosh Sawant**
 
-Backend Developer | Java | Node.js | NestJS | API Security
+Backend Developer | Java | Spring Boot | NestJS | Node.js | PostgreSQL | Redis
 
-GitHub: [Adit-Sawant](https://github.com/Adit-Sawant)
-
----
-
-If you find this project useful, feel free to explore the repository and share your feedback.
+GitHub: https://github.com/Adit-Sawant
